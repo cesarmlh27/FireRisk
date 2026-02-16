@@ -1,0 +1,16 @@
+{
+  "feature_cols": [
+    "tmax_c",
+    "tmin_c",
+    "tmean_c",
+    "dtr",
+    "rh_pct",
+    "wind_kmh",
+    "rain_mm",
+    "rain_7d",
+    "rain_30d",
+    "doy_sin",
+    "doy_cos",
+    "ffwi"
+  ]
+}

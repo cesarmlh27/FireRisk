@@ -1,0 +1,31 @@
+{
+  "rows": 1153,
+  "date_range": [
+    "2022-01-01",
+    "2025-02-26"
+  ],
+  "labeling": {
+    "ffwi_threshold_p90": 8.735905443596792,
+    "label_rule": "rule_30_30_30 OR ffwi>=p90"
+  },
+  "class_balance_train": {
+    "0": 815,
+    "1": 107
+  },
+  "features": [
+    "tmax_c",
+    "tmin_c",
+    "tmean_c",
+    "rh_pct",
+    "wind_kmh",
+    "rain_mm",
+    "rain_7d",
+    "rain_30d",
+    "ffwi",
+    "doy",
+    "month"
+  ],
+  "calibrated": true,
+  "auc": 1.0,
+  "ap": 1.0
+}

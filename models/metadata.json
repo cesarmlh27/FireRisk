@@ -1,0 +1,39 @@
+{
+  "rows": 1153,
+  "dropped_rows_due_to_nan": 0,
+  "date_range": [
+    "2022-01-01",
+    "2025-02-26"
+  ],
+  "labeling": {
+    "rule_soft": {
+      "tmax_min": 29.0,
+      "rh_max": 35.0,
+      "wind_min": 28.0
+    },
+    "final_rate": 0.007805724197745013,
+    "min_pos": 57,
+    "base_pos": 0
+  },
+  "class_balance_train": {
+    "0": 916,
+    "1": 6
+  },
+  "features": [
+    "tmax_c",
+    "tmin_c",
+    "tmean_c",
+    "dtr",
+    "rh_pct",
+    "wind_kmh",
+    "rain_mm",
+    "rain_7d",
+    "rain_30d",
+    "doy_sin",
+    "doy_cos",
+    "ffwi"
+  ],
+  "calibrated": true,
+  "auc": 1.0,
+  "ap": 1.0
+}
