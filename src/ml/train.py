@@ -1,18 +1,18 @@
 # src/ml/train.py
-import json, joblib
+import json, joblib, shutil
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import roc_auc_score, average_precision_score
 
 from src.ml.features import build_features
-from src.utils.paths import DATABASE_URL, MODEL_PATH, FEATURES_PATH
+from src.db.session import engine
+from src.utils.paths import MODEL_PATH, FEATURES_PATH, META_PATH, LATEST_DIR
 
 
 def load_from_db() -> pd.DataFrame:
-    engine = create_engine(DATABASE_URL, future=True)
     q = """
       SELECT date, year, doy, tmean_c, tmax_c, tmin_c, rh_pct, wind_ms, wind_kmh, rain_mm
       FROM climatic_data
@@ -84,6 +84,7 @@ def train_and_save():
         json.dump({"feature_cols": feature_cols}, f, ensure_ascii=False, indent=2)
 
     # Metadatos para auditoría
+    import os; os.makedirs(LATEST_DIR, exist_ok=True)
     def _safe(x):
         try:
             x = float(x)
@@ -105,8 +106,18 @@ def train_and_save():
         "auc": _safe(auc),
         "ap": _safe(ap),
     }
-    with open("models/metadata.json", "w", encoding="utf-8") as f:
+    with open(META_PATH, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    # Sincronizar models/latest/ con el modelo recién entrenado
+    import os
+    for src_path, fname in [
+        (MODEL_PATH,    "model.joblib"),
+        (FEATURES_PATH, "features.json"),
+        (META_PATH,     "meta.json"),
+    ]:
+        dest = os.path.join(LATEST_DIR, fname)
+        shutil.copy2(src_path, dest)
 
     return meta
 

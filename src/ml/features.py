@@ -24,8 +24,12 @@ def build_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str], Dict]:
     # ---- FFWI ----
     out["ffwi"] = compute_ffwi_series(out["tmean_c"], out["rh_pct"], out["wind_kmh"])
 
-    # ---- etiqueta base: regla suavizada ----
-    t_thr, rh_thr, w_thr = 29.0, 35.0, 28.0
+    # ---- etiqueta base: regla adaptativa (percentiles del propio dataset) ----
+    # Usar percentiles evita que umbrales absolutos (29°C, 35% RH) nunca se
+    # cumplan en climas fríos/húmedos como Tunja (2775 m s.n.m.)
+    t_thr  = max(float(out["tmax_c"].quantile(0.80)), 17.0)   # top-20% de tmax
+    rh_thr = min(float(out["rh_pct"].quantile(0.25)), 70.0)   # bottom-25% de RH
+    w_thr  = max(float(out["wind_kmh"].quantile(0.70)), 7.0)  # top-30% de viento
     rule_soft = (out["tmax_c"] >= t_thr) & (out["rh_pct"] <= rh_thr) & (out["wind_kmh"] >= w_thr)
 
     N = len(out)
@@ -114,6 +118,7 @@ def build_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str], Dict]:
 
     label_params = {
         "rule_soft": {"tmax_min": t_thr, "rh_max": rh_thr, "wind_min": w_thr},
+        "thresholds_type": "adaptive_percentile",
         "final_rate": final_rate,
         "min_pos": int(min_pos),
         "base_pos": int(base_pos),

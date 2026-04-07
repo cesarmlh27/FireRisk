@@ -9,23 +9,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from app.schemas import PredictIn, PredictOut
-
-# servicio de predicción
-try:
-    from app.service.predict import score_payload
-except Exception:
-    from app.service.predict import score_payload
-
-# entrenamiento
+from app.schemas import PredictIn, PredictOut, RangeOut
+from app.service.predict import score_payload
 from src.ml.train import train_and_save
-# conexión
-from src.utils.paths import DATABASE_URL
-
-# ---------- auth (admin en BD) ----------
-from app.auth import require_admin_db   # asegúrate de crear app/auth.py (abajo)
+from src.utils.paths import META_PATH
+from src.db.session import engine
+from app.auth import require_admin_db
 
 # ---------- util gráfico ---------------
 def prob_plot_b64(title: str, prob: float) -> str:
@@ -46,10 +37,14 @@ app = FastAPI(
     description="API de predicción de incendios (Random Forest + FFWI) con soporte de localidades."
 )
 
-# CORS para Vite/React
+# CORS para Vite/React  (nunca usar "*" con allow_credentials=True)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        os.getenv("CORS_ORIGIN", ""),
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,7 +57,6 @@ def health():
 
 @app.get("/locations")
 def locations():
-    engine = create_engine(DATABASE_URL, future=True)
     with engine.connect() as con:
         rows = con.execute(text("SELECT DISTINCT city FROM climatic_data ORDER BY city")).fetchall()
     return {"locations": [r[0] for r in rows]}
@@ -70,7 +64,6 @@ def locations():
 @app.get("/days")
 def list_days(city: str = Query("tunja")):
     """Lista de fechas disponibles por localidad."""
-    engine = create_engine(DATABASE_URL, future=True)
     with engine.connect() as con:
         rows = con.execute(
             text("SELECT date FROM climatic_data WHERE city=:c ORDER BY date"),
@@ -83,8 +76,8 @@ def train():
     """Re-entrena el modelo con todo lo cargado en BD (solo admin)."""
     try:
         return train_and_save()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al entrenar el modelo.")
 
 @app.post("/predict", response_model=PredictOut)
 def predict(item: PredictIn):
@@ -102,8 +95,8 @@ def predict(item: PredictIn):
         return res
     except FileNotFoundError:
         raise HTTPException(status_code=400, detail="No se encontró el modelo. Entrena primero con POST /train.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al procesar la predicción.")
 
 @app.get("/predict/by-date", response_model=PredictOut)
 def predict_by_date(
@@ -114,7 +107,6 @@ def predict_by_date(
     Predicción para un día de la BD (por localidad).
     Obtiene tmax/tmin/RH/viento/lluvia, calcula acumulados 7/30 días y predice.
     """
-    engine = create_engine(DATABASE_URL, future=True)
     try:
         with engine.connect() as con:
             row = con.execute(text("""
@@ -150,10 +142,10 @@ def predict_by_date(
         raise
     except FileNotFoundError:
         raise HTTPException(status_code=400, detail="No se encontró el modelo. Entrena primero.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al procesar la predicción.")
 
-@app.get("/predict/range")
+@app.get("/predict/range", response_model=RangeOut)
 def predict_range(
     start: str = Query(..., description="YYYY-MM-DD"),
     end: str = Query(..., description="YYYY-MM-DD"),
@@ -166,7 +158,6 @@ def predict_range(
     if s > e:
         raise HTTPException(400, "start debe ser <= end")
 
-    engine = create_engine(DATABASE_URL, future=True)
     s_pad = (s - pd.Timedelta(days=29)).strftime("%Y-%m-%d")
     with engine.connect() as con:
         df = pd.read_sql(
@@ -177,7 +168,7 @@ def predict_range(
             con, params={"c": city, "s": s_pad, "e": end}
         )
     if df.empty:
-        return {"city": city, "points": []}
+        return {"city": city, "start": start, "end": end, "points": []}
 
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date").reset_index(drop=True)
@@ -200,17 +191,17 @@ def predict_range(
         out.append({
             "date": payload["date"],
             "probability": res["probability"],
-            "interpretation": res["interpretation"]
+            "probability_pct": res["probability_pct"],
         })
 
-    return {"city": city, "points": out}
+    return {"city": city, "start": start, "end": end, "points": out}
 
 @app.get("/model/info")
 def model_info():
     try:
-        with open("models/metadata.json", "r", encoding="utf-8") as f:
+        with open(META_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Aún no hay metadata. Entrena el modelo.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al leer metadata del modelo.")

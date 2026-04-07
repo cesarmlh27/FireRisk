@@ -1,558 +1,466 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  ReferenceLine,
+	Area,
+	AreaChart,
+	CartesianGrid,
+	ReferenceLine,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
 } from "recharts";
 
-// === Config ===
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
-// === Pequeños helpers de estilo ===
-const colors = {
-  blueBg1: "#0ea5e9", // sky-500
-  blueBg2: "#0b5ed7", // primary-ish
-  surface: "rgba(255,255,255,0.90)",
-  outline: "rgba(0,0,0,.08)",
-  text: "#0f172a",
-  sub: "#475569",
-  ok: "#16a34a",
-  warn: "#f59e0b",
-  hi: "#ef4444",
-};
-
-const Card = ({ title, right = null, children, style }) => (
-  <section
-    style={{
-      background: colors.surface,
-      border: `1px solid ${colors.outline}`,
-      borderRadius: 20,
-      padding: 18,
-      boxShadow: "0 12px 40px rgba(2, 6, 23, .12)",
-      ...style,
-    }}
-  >
-    <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
-      {title ? (
-        <h2 style={{ margin: 0, fontSize: 18, color: colors.text }}>{title}</h2>
-      ) : (
-        <span />
-      )}
-      <div style={{ marginLeft: "auto" }}>{right}</div>
-    </div>
-    {children}
-  </section>
-);
-
-const TabButton = ({ active, children, onClick }) => (
-  <button
-    onClick={onClick}
-    style={{
-      padding: "10px 14px",
-      borderRadius: 12,
-      border: `1px solid ${active ? "transparent" : colors.outline}`,
-      background: active
-        ? "linear-gradient(135deg, #111827, #1f2937)"
-        : "#ffffff",
-      color: active ? "#fff" : colors.text,
-      fontWeight: 700,
-      letterSpacing: 0.2,
-      boxShadow: active ? "0 8px 22px rgba(17,24,39,.25)" : "none",
-      cursor: "pointer",
-    }}
-  >
-    {children}
-  </button>
-);
-
-const PrimaryBtn = ({ children, ...props }) => (
-  <button
-    {...props}
-    style={{
-      padding: "10px 14px",
-      borderRadius: 12,
-      border: "none",
-      background: "linear-gradient(135deg, #2563eb, #0ea5e9)",
-      color: "#fff",
-      fontWeight: 800,
-      letterSpacing: 0.3,
-      cursor: "pointer",
-      boxShadow: "0 10px 30px rgba(37,99,235,.35)",
-    }}
-  >
-    {children}
-  </button>
-);
-
-// === Branding simple ===
-const Logo = () => (
-  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-    <div
-      aria-hidden
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        background: "linear-gradient(135deg, #22d3ee, #3b82f6)",
-        display: "grid",
-        placeItems: "center",
-        boxShadow: "0 10px 30px rgba(59,130,246,.35)",
-      }}
-    >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" fill="#fff" />
-      </svg>
-    </div>
-    <div>
-      <div style={{ fontWeight: 900, fontSize: 22, color: "#fff" }}>Fire Risk</div>
-      <div style={{ color: "#e2e8f0", fontSize: 12 }}>Tunja · ML + Datos Climáticos</div>
-    </div>
-  </div>
-);
-
-// === Widgets ===
-function RiskBadge({ p }) {
-  const pct = (p * 100).toFixed(2);
-  let color = colors.ok,
-    text = "Bajo";
-  if (p >= 0.8) {
-    color = colors.hi;
-    text = "Muy alto";
-  } else if (p > 0.5) {
-    color = "#dc2626";
-    text = "Alto";
-  } else if (p >= 0.2) {
-    color = colors.warn;
-    text = "Moderado";
-  }
-  return (
-    <div
-      style={{
-        display: "inline-block",
-        padding: "8px 12px",
-        borderRadius: 999,
-        background: color,
-        color: "#fff",
-        fontWeight: 800,
-      }}
-    >
-      {text} · {pct}%
-    </div>
-  );
+function riskLevel(p) {
+	if (p >= 0.8) return { label: "Muy Alto", cls: "badge--crit", color: "var(--risk-crit)" };
+	if (p > 0.5) return { label: "Alto", cls: "badge--hi", color: "var(--risk-hi)" };
+	if (p >= 0.2) return { label: "Moderado", cls: "badge--mod", color: "var(--risk-mod)" };
+	return { label: "Bajo", cls: "badge--ok", color: "var(--risk-ok)" };
 }
 
-const Radial = ({ p }) => {
-  const pct = Math.max(0, Math.min(100, p * 100));
-  const r = 58;
-  const c = 2 * Math.PI * r;
-  const off = c - (pct / 100) * c;
-  const color = p >= 0.8 ? colors.hi : p > 0.5 ? "#dc2626" : p >= 0.2 ? colors.warn : colors.ok;
-  return (
-    <svg width={160} height={160} viewBox="0 0 160 160">
-      <defs>
-        <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" />
-        </filter>
-      </defs>
-      <circle cx={80} cy={80} r={r} stroke="#e2e8f0" strokeWidth={14} fill="none" />
-      <circle
-        cx={80}
-        cy={80}
-        r={r}
-        stroke={color}
-        strokeWidth={14}
-        strokeLinecap="round"
-        fill="none"
-        strokeDasharray={c}
-        strokeDashoffset={off}
-        style={{ filter: "url(#soft)" }}
-      />
-      <text x="80" y="78" textAnchor="middle" fontSize="28" fontWeight="900" fill={colors.text}>
-        {pct.toFixed(1)}%
-      </text>
-      <text x="80" y="102" textAnchor="middle" fontSize="12" fill={colors.sub}>
-        probabilidad
-      </text>
-    </svg>
-  );
+const Card = ({ title, accent, right, children }) => (
+	<section className={`card ${accent ? `card--${accent}` : ""}`}>
+		{(title || right) && (
+			<div className="card-header">
+				{title && <h3 className="card-title">{title}</h3>}
+				{right && <div className="card-actions">{right}</div>}
+			</div>
+		)}
+		{children}
+	</section>
+);
+
+const KpiCard = ({ label, value, sub, accent }) => (
+	<div className={`kpi-card ${accent ? `kpi-card--${accent}` : ""}`}>
+		<div className="kpi-label">{label}</div>
+		<div className="kpi-value">{value}</div>
+		{sub && <div className="kpi-sub">{sub}</div>}
+	</div>
+);
+
+const Btn = ({ children, variant = "primary", ...props }) => (
+	<button className={`btn btn--${variant}`} {...props}>
+		{children}
+	</button>
+);
+
+const RiskBadge = ({ p }) => {
+	const meta = riskLevel(p);
+	return <span className={`badge ${meta.cls}`}>{meta.label} - {(p * 100).toFixed(1)}%</span>;
 };
 
-// === App ===
+const Loader = () => (
+	<div className="loader">
+		<span className="loader-dot" />
+		<span className="loader-dot" />
+		<span className="loader-dot" />
+	</div>
+);
+
+const ChartTooltip = ({ active, payload, label }) => {
+	if (!active || !payload?.length) return null;
+	const val = payload[0]?.value ?? 0;
+	const meta = riskLevel(val / 100);
+	return (
+		<div className="chart-tooltip">
+			<div className="chart-tooltip-date">{label}</div>
+			<div className="chart-tooltip-row">
+				<span style={{ color: meta.color }}>o</span>
+				<span className="chart-tooltip-val">{val.toFixed(2)}%</span>
+				<span className="chart-tooltip-risk" style={{ color: meta.color }}>
+					{meta.label}
+				</span>
+			</div>
+		</div>
+	);
+};
+
+function RadialGauge({ p }) {
+	const pct = Math.max(0, Math.min(100, p * 100));
+	const r = 60;
+	const c = 2 * Math.PI * r;
+	const off = c - (pct / 100) * c;
+	const meta = riskLevel(p);
+
+	return (
+		<div className="radial-wrap">
+			<svg width={170} height={170} viewBox="0 0 170 170">
+				<circle cx={85} cy={85} r={r} stroke="rgba(255,255,255,0.08)" strokeWidth={12} fill="none" />
+				<circle
+					cx={85}
+					cy={85}
+					r={r}
+					stroke={meta.color}
+					strokeWidth={12}
+					strokeLinecap="round"
+					fill="none"
+					strokeDasharray={c}
+					strokeDashoffset={off}
+					transform="rotate(-90 85 85)"
+				/>
+				<text x={85} y={80} textAnchor="middle" fontSize="28" fontWeight="800" fill="#f4f4f5">
+					{pct.toFixed(1)}%
+				</text>
+				<text x={85} y={98} textAnchor="middle" fontSize="10" fill="#71717a" letterSpacing="1">
+					PROB RIESGO
+				</text>
+			</svg>
+		</div>
+	);
+}
+
+const DataGrid = ({ data }) => {
+	if (!data) return null;
+	return (
+		<div className="data-grid">
+			{Object.entries(data)
+				.filter(([k]) => k !== "date")
+				.map(([k, v]) => (
+					<div key={k} className="data-cell">
+						<span className="data-key">{k}</span>
+						<span className="data-val">{typeof v === "number" ? v.toFixed(3) : String(v)}</span>
+					</div>
+				))}
+		</div>
+	);
+};
+
 export default function App() {
-  const [tab, setTab] = useState("hist");
-  const [cities, setCities] = useState(["tunja"]);
-  const [city, setCity] = useState("tunja");
+	const [tab, setTab] = useState("hist");
+	const [cities, setCities] = useState(["tunja"]);
+	const [city, setCity] = useState("tunja");
+	const [days, setDays] = useState([]);
+	const [selectedDay, setSelectedDay] = useState("");
+	const [loading, setLoading] = useState(false);
+	const [result, setResult] = useState(null);
+	const [series, setSeries] = useState([]);
+	const [range, setRange] = useState({ start: "", end: "" });
+	const [apiKey, setApiKey] = useState(sessionStorage.getItem("X_API_KEY") || "");
+	const [toast, setToast] = useState("");
+	const [error, setError] = useState("");
+	const [manual, setManual] = useState({ tmax: "", tmin: "", humidity: "", wind: "", rain_24h: "" });
 
-  const [days, setDays] = useState([]);
-  const [selectedDay, setSelectedDay] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+	const loadLocations = async () => {
+		try {
+			const r = await fetch(`${API_BASE}/locations`);
+			if (!r.ok) throw new Error(`HTTP ${r.status}`);
+			const j = await r.json();
+			const all = j.locations?.length ? j.locations : ["tunja"];
+			setCities(all);
+			setCity((prev) => (all.includes(prev) ? prev : all[0]));
+		} catch (e) {
+			setError(`No se pudo cargar localidades: ${e.message}`);
+		}
+	};
 
-  const [manual, setManual] = useState({ tmax: "", tmin: "", humidity: "", wind: "", rain_24h: "" });
-  const [range, setRange] = useState({ start: "", end: "" });
-  const [series, setSeries] = useState([]);
+	const loadDays = async (targetCity) => {
+		if (!targetCity) return;
+		try {
+			const r = await fetch(`${API_BASE}/days?city=${encodeURIComponent(targetCity)}`);
+			if (!r.ok) throw new Error(`HTTP ${r.status}`);
+			const j = await r.json();
+			const ds = j.dates || [];
+			setDays(ds);
+			setSelectedDay(ds[ds.length - 1] || "");
+			if (!ds.length) {
+				setError(`No hay fechas disponibles para ${targetCity}`);
+			}
+		} catch (e) {
+			setDays([]);
+			setSelectedDay("");
+			setError(`No se pudo cargar fechas: ${e.message}`);
+		}
+	};
 
-  const [apiKey, setApiKey] = useState(localStorage.getItem("X_API_KEY") || "");
-  const [toast, setToast] = useState("");
+	useEffect(() => {
+		loadLocations();
+	}, []);
 
-  // Localidades
-  useEffect(() => {
-    fetch(`${API_BASE}/locations`)
-      .then((r) => r.json())
-      .then((j) => {
-        const cs = j.locations?.length ? j.locations : ["tunja"];
-        setCities(cs);
-        setCity(cs[0]);
-      })
-      .catch(() => {});
-  }, []);
+	useEffect(() => {
+		loadDays(city);
+	}, [city]);
 
-  // Días por ciudad
-  useEffect(() => {
-    if (!city) return;
-    fetch(`${API_BASE}/days?city=${encodeURIComponent(city)}`)
-      .then((r) => r.json())
-      .then((j) => {
-        setDays(j.dates || []);
-        setSelectedDay(j.dates?.[j.dates.length - 1] || "");
-      })
-      .catch(() => {});
-  }, [city]);
+	const chartData = useMemo(
+		() => (series || []).map((p) => ({ date: p.date, prob: +(p.probability * 100).toFixed(3) })),
+		[series]
+	);
 
-  const fetchByDate = async () => {
-    if (!selectedDay) return;
-    setLoading(true);
-    setResult(null);
-    const r = await fetch(`${API_BASE}/predict/by-date?date=${selectedDay}&city=${encodeURIComponent(city)}`);
-    const j = await r.json();
-    setResult(j);
-    setLoading(false);
-  };
+	const stats = useMemo(() => {
+		if (!chartData.length) return null;
+		const vals = chartData.map((v) => v.prob);
+		const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+		return {
+			avg: avg.toFixed(1),
+			max: Math.max(...vals).toFixed(1),
+			crit: vals.filter((v) => v >= 50).length,
+			total: vals.length,
+		};
+	}, [chartData]);
 
-  const fetchManual = async () => {
-    const body = {
-      date: new Date().toISOString().slice(0, 10),
-      tmax: Number(manual.tmax),
-      tmin: Number(manual.tmin),
-      humidity: Number(manual.humidity),
-      wind: Number(manual.wind),
-      rain_24h: manual.rain_24h === "" ? null : Number(manual.rain_24h),
-      rain_7d: null,
-      rain_30d: null,
-    };
-    setLoading(true);
-    setResult(null);
-    const r = await fetch(`${API_BASE}/predict`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const j = await r.json();
-    setResult(j);
-    setLoading(false);
-  };
+	const fetchByDate = async () => {
+		if (!selectedDay) return;
+		setLoading(true);
+		setError("");
+		setResult(null);
+		try {
+			const r = await fetch(`${API_BASE}/predict/by-date?date=${selectedDay}&city=${encodeURIComponent(city)}`);
+			if (!r.ok) throw new Error(`HTTP ${r.status}`);
+			setResult(await r.json());
+		} catch (e) {
+			setError(`Error al consultar prediccion: ${e.message}`);
+		} finally {
+			setLoading(false);
+		}
+	};
 
-  const fetchRange = async () => {
-    if (!range.start || !range.end) return;
-    setLoading(true);
-    setSeries([]);
-    const r = await fetch(
-      `${API_BASE}/predict/range?start=${range.start}&end=${range.end}&city=${encodeURIComponent(city)}`
-    );
-    const j = await r.json();
-    setSeries(j.points || []);
-    setLoading(false);
-  };
+	const fetchManual = async () => {
+		setLoading(true);
+		setError("");
+		setResult(null);
+		try {
+			const body = {
+				date: new Date().toISOString().slice(0, 10),
+				tmax: Number(manual.tmax),
+				tmin: Number(manual.tmin),
+				humidity: Number(manual.humidity),
+				wind: Number(manual.wind),
+				rain_24h: manual.rain_24h === "" ? null : Number(manual.rain_24h),
+				rain_7d: null,
+				rain_30d: null,
+			};
+			const r = await fetch(`${API_BASE}/predict`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!r.ok) throw new Error(`HTTP ${r.status}`);
+			setResult(await r.json());
+		} catch (e) {
+			setError(`Error en simulador: ${e.message}`);
+		} finally {
+			setLoading(false);
+		}
+	};
 
-  const doTrain = async () => {
-    const key = apiKey || window.prompt("API key de administrador:");
-    if (!key) return;
-    setApiKey(key);
-    localStorage.setItem("X_API_KEY", key);
-    setLoading(true);
-    const r = await fetch(`${API_BASE}/train`, { method: "POST", headers: { "X-API-Key": key } });
-    const j = await r.json();
-    setLoading(false);
-    if (r.ok) {
-      setToast("Modelo re-entrenado correctamente");
-      setTimeout(() => setToast(""), 2500);
-    } else {
-      alert("Error: " + (j?.detail || JSON.stringify(j)));
-    }
-  };
+	const fetchRange = async () => {
+		if (!range.start || !range.end) return;
+		setLoading(true);
+		setError("");
+		setSeries([]);
+		try {
+			const r = await fetch(
+				`${API_BASE}/predict/range?start=${range.start}&end=${range.end}&city=${encodeURIComponent(city)}`
+			);
+			if (!r.ok) throw new Error(`HTTP ${r.status}`);
+			const j = await r.json();
+			setSeries(j.points || []);
+		} catch (e) {
+			setError(`Error al cargar serie: ${e.message}`);
+		} finally {
+			setLoading(false);
+		}
+	};
 
-  const chartData = useMemo(
-    () => (series || []).map((p) => ({ date: p.date, prob: +(p.probability * 100).toFixed(3) })),
-    [series]
-  );
+	const doTrain = async () => {
+		const key = apiKey || prompt("API key admin");
+		if (!key) return;
+		sessionStorage.setItem("X_API_KEY", key);
+		setApiKey(key);
+		setLoading(true);
+		setError("");
+		try {
+			const r = await fetch(`${API_BASE}/train`, { method: "POST", headers: { "X-API-Key": key } });
+			const j = await r.json();
+			if (!r.ok) throw new Error(j?.detail || "train error");
+			setToast("Modelo reentrenado");
+			setTimeout(() => setToast(""), 2500);
+		} catch (e) {
+			setError(`Error al reentrenar: ${e.message}`);
+		} finally {
+			setLoading(false);
+		}
+	};
 
-  const Loader = (
-    <div style={{ padding: 12, color: colors.sub, fontWeight: 600, letterSpacing: 0.3 }}>Cargando…</div>
-  );
+	return (
+		<div className="app-shell">
+			<header className="navbar">
+				<div className="navbar-inner">
+					<div className="logo">
+						<div className="logo-icon" aria-hidden>
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+								<path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" fill="#3b82f6" />
+							</svg>
+						</div>
+						<div>
+							<span className="logo-name">FireRisk</span>
+							<span className="logo-sub">Tunja - ML Analytics</span>
+						</div>
+					</div>
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: `radial-gradient(1200px 600px at 50% -100px, rgba(255,255,255,.25), transparent 60%), linear-gradient(180deg, ${
-          colors.blueBg1
-        } 0%, ${colors.blueBg2} 100%)`,
-        padding: 24,
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 1120 }}>
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 18,
-          }}
-        >
-          <Logo />
-          <div style={{ display: "flex", gap: 10 }}>
-            <TabButton active={tab === "hist"} onClick={() => setTab("hist")}>Histórico</TabButton>
-            <TabButton active={tab === "manual"} onClick={() => setTab("manual")}>Simulador</TabButton>
-            <TabButton active={tab === "serie"} onClick={() => setTab("serie")}>Serie</TabButton>
-            <PrimaryBtn onClick={doTrain} title="Solo admin">Re-entrenar</PrimaryBtn>
-          </div>
-        </div>
+					<nav className="tab-bar" role="tablist" aria-label="Secciones">
+						<button className={`tab${tab === "hist" ? " tab--active" : ""}`} onClick={() => setTab("hist")}>Historico</button>
+						<button className={`tab${tab === "manual" ? " tab--active" : ""}`} onClick={() => setTab("manual")}>Simulador</button>
+						<button className={`tab${tab === "serie" ? " tab--active" : ""}`} onClick={() => setTab("serie")}>Serie</button>
+					</nav>
 
-        {/* Selector de localidad */}
-        <Card title="Localidad">
-          <select
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            style={{
-              padding: 12,
-              borderRadius: 12,
-              border: `1px solid ${colors.outline}`,
-              minWidth: 240,
-              fontWeight: 700,
-            }}
-          >
-            {cities.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </Card>
+					<div className="navbar-right">
+						<select className="select select--sm" value={city} onChange={(e) => setCity(e.target.value)}>
+							{cities.map((c) => (
+								<option key={c} value={c}>{c}</option>
+							))}
+						</select>
+						<Btn variant="ghost" onClick={doTrain} disabled={loading}>Reentrenar</Btn>
+					</div>
+				</div>
+			</header>
 
-        {/* HISTÓRICO */}
-        {tab === "hist" && (
-          <>
-            <Card
-              title="Selecciona una fecha del histórico"
-              right={
-                <PrimaryBtn onClick={fetchByDate} disabled={!selectedDay || loading}>
-                  {loading ? "Cargando…" : "Predecir"}
-                </PrimaryBtn>
-              }
-            >
-              <select
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(e.target.value)}
-                style={{ padding: 12, borderRadius: 12, border: `1px solid ${colors.outline}`, minWidth: 260 }}
-              >
-                {days.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </Card>
+			<div className="kpi-strip">
+				<div className="kpi-strip-inner">
+					<KpiCard label="Registros" value={days.length || "-"} sub={city} />
+					<KpiCard label="Ultima fecha" value={days[days.length - 1] || "-"} />
+					<KpiCard label="Primera fecha" value={days[0] || "-"} />
+					{result && <KpiCard label="Ultimo riesgo" value={`${(result.probability * 100).toFixed(1)}%`} sub={riskLevel(result.probability).label} accent="fire" />}
+					{stats && <KpiCard label="Promedio" value={`${stats.avg}%`} sub="serie" accent="warn" />}
+				</div>
+			</div>
 
-            {result && (
-              <Card
-                title={`Resultado para ${result?.analyzed_data?.date} (${city})`}
-                right={<RiskBadge p={result.probability || 0} />}
-              >
-                <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
-                  <Radial p={result.probability || 0} />
-                  <div>
-                    <div style={{ color: colors.sub, marginBottom: 6 }}>Datos analizados</div>
-                    <pre
-                      style={{
-                        background: "#f8fafc",
-                        padding: 12,
-                        borderRadius: 12,
-                        maxHeight: 220,
-                        overflow: "auto",
-                        border: `1px solid ${colors.outline}`,
-                      }}
-                    >
-                      {JSON.stringify(result.analyzed_data, null, 2)}
-                    </pre>
-                  </div>
-                  {result.chart_png_base64 && (
-                    <div style={{ marginLeft: "auto" }}>
-                      <img
-                        alt="prob chart"
-                        style={{ maxWidth: 280, borderRadius: 12, border: `1px solid ${colors.outline}` }}
-                        src={`data:image/png;base64,${result.chart_png_base64}`}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div style={{ color: colors.sub, fontSize: 12, marginTop: 10 }}>
-                  Referencias: Bajo 0–20%, Moderado 20–50%, Alto 50–80%, Muy alto 80–100%
-                </div>
-              </Card>
-            )}
+			<main className="main-content">
+				{tab === "hist" && (
+					<div className="tab-content">
+						<Card
+							title="Consulta historica"
+							accent="fire"
+							right={<Btn onClick={fetchByDate} disabled={!selectedDay || loading}>{loading ? "Analizando..." : "Analizar"}</Btn>}
+						>
+							<p className="helper-text">Selecciona una fecha para calcular riesgo con el modelo.</p>
+							{!days.length && (
+								<div className="field-actions" style={{ marginBottom: 12 }}>
+									<Btn variant="ghost" onClick={() => loadDays(city)} disabled={loading}>Reintentar fechas</Btn>
+									<Btn variant="ghost" onClick={loadLocations} disabled={loading}>Recargar localidades</Btn>
+								</div>
+							)}
+							<select className="select" style={{ maxWidth: 320 }} value={selectedDay} onChange={(e) => setSelectedDay(e.target.value)}>
+								{days.map((d) => (
+									<option key={d} value={d}>{d}</option>
+								))}
+							</select>
+						</Card>
 
-            {loading && Loader}
-          </>
-        )}
+						{loading && <Loader />}
 
-        {/* SIMULADOR */}
-        {tab === "manual" && (
-          <Card title="Simulador (ingresa valores diarios)">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-              {[
-                ["tmax", "Tmax (°C)", "number"],
-                ["tmin", "Tmin (°C)", "number"],
-                ["humidity", "Humedad (%)", "number"],
-                ["wind", "Viento (km/h)", "number"],
-                ["rain_24h", "Lluvia 24h (mm) – opcional", "number"],
-              ].map(([k, label, type]) => (
-                <label key={k} style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-                  {label}
-                  <input
-                    type={type}
-                    value={manual[k]}
-                    onChange={(e) => setManual((v) => ({ ...v, [k]: e.target.value }))}
-                    style={{ padding: 12, borderRadius: 12, border: `1px solid ${colors.outline}` }}
-                  />
-                </label>
-              ))}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14 }}>
-              <PrimaryBtn onClick={fetchManual} disabled={loading}>
-                {loading ? "Calculando…" : "Predecir"}
-              </PrimaryBtn>
-              {result && <RiskBadge p={result.probability || 0} />}
-            </div>
+						{result && !loading && (
+							<div className="result-grid">
+								<Card title="Resultado" accent="fire">
+									<div className="result-gauge-wrap">
+										<RadialGauge p={result.probability || 0} />
+										<div className="result-meta">
+											<RiskBadge p={result.probability || 0} />
+											<div className="result-date">
+												<span className="data-key">Fecha</span>
+												<span className="data-val mono">{result.analyzed_data?.date}</span>
+											</div>
+										</div>
+									</div>
+								</Card>
 
-            {result && (
-              <div style={{ marginTop: 14, display: "flex", gap: 18, flexWrap: "wrap" }}>
-                <Radial p={result.probability || 0} />
-                {result.chart_png_base64 && (
-                  <img
-                    alt="prob chart"
-                    style={{ maxWidth: 260, borderRadius: 12, border: `1px solid ${colors.outline}` }}
-                    src={`data:image/png;base64,${result.chart_png_base64}`}
-                  />
-                )}
-                <pre
-                  style={{
-                    background: "#f8fafc",
-                    padding: 12,
-                    borderRadius: 12,
-                    maxHeight: 220,
-                    overflow: "auto",
-                    border: `1px solid ${colors.outline}`,
-                  }}
-                >
-                  {JSON.stringify(result.analyzed_data, null, 2)}
-                </pre>
-            </div>
-            )}
+								<Card title="Variables" accent="cyan">
+									<DataGrid data={result.analyzed_data} />
+									{result.chart_png_base64 && (
+										<img alt="chart" className="prob-img" src={`data:image/png;base64,${result.chart_png_base64}`} />
+									)}
+								</Card>
+							</div>
+						)}
+					</div>
+				)}
 
-            {loading && Loader}
-          </Card>
-        )}
+				{tab === "manual" && (
+					<div className="tab-content">
+						<Card title="Simulador" accent="purple">
+							<div className="fields-grid">
+								{[
+									["tmax", "T max (C)"],
+									["tmin", "T min (C)"],
+									["humidity", "Humedad (%)"],
+									["wind", "Viento (km/h)"],
+									["rain_24h", "Lluvia 24h (mm)"],
+								].map(([k, label]) => (
+									<label key={k} className="field">
+										<span className="field-label">{label}</span>
+										<input
+											className="input"
+											type="number"
+											value={manual[k]}
+											onChange={(e) => setManual((prev) => ({ ...prev, [k]: e.target.value }))}
+										/>
+									</label>
+								))}
+							</div>
+							<div className="field-actions">
+								<Btn onClick={fetchManual} disabled={loading}>{loading ? "Calculando..." : "Calcular"}</Btn>
+								{result && <RiskBadge p={result.probability || 0} />}
+							</div>
+						</Card>
+					</div>
+				)}
 
-        {/* SERIE */}
-        {tab === "serie" && (
-          <>
-            <Card
-              title="Rango de fechas"
-              right={
-                <PrimaryBtn onClick={fetchRange} disabled={loading || !range.start || !range.end}>
-                  {loading ? "Cargando…" : "Calcular serie"}
-                </PrimaryBtn>
-              }
-            >
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <label>
-                  Inicio
-                  <input
-                    type="date"
-                    value={range.start}
-                    onChange={(e) => setRange((v) => ({ ...v, start: e.target.value }))}
-                    style={{ marginLeft: 8, padding: 12, borderRadius: 12, border: `1px solid ${colors.outline}` }}
-                  />
-                </label>
-                <label>
-                  Fin
-                  <input
-                    type="date"
-                    value={range.end}
-                    onChange={(e) => setRange((v) => ({ ...v, end: e.target.value }))}
-                    style={{ marginLeft: 8, padding: 12, borderRadius: 12, border: `1px solid ${colors.outline}` }}
-                  />
-                </label>
-              </div>
-            </Card>
+				{tab === "serie" && (
+					<div className="tab-content">
+						<Card
+							title="Serie temporal"
+							accent="cyan"
+							right={<Btn onClick={fetchRange} disabled={loading || !range.start || !range.end}>{loading ? "Calculando..." : "Generar"}</Btn>}
+						>
+							<div className="date-range-row">
+								<label className="field field--inline">
+									<span className="field-label">Inicio</span>
+									<input className="input" type="date" value={range.start} onChange={(e) => setRange((v) => ({ ...v, start: e.target.value }))} />
+								</label>
+								<label className="field field--inline">
+									<span className="field-label">Fin</span>
+									<input className="input" type="date" value={range.end} onChange={(e) => setRange((v) => ({ ...v, end: e.target.value }))} />
+								</label>
+							</div>
+						</Card>
 
-            {!!series.length && (
-              <Card title={`Serie de probabilidad (%) – ${city}`}>
-                <div style={{ width: "100%", height: 380 }}>
-                  <ResponsiveContainer>
-                    <LineChart data={chartData} margin={{ top: 5, right: 12, left: 0, bottom: 24 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <ReferenceLine y={20} stroke={colors.ok} strokeDasharray="4 4" />
-                      <ReferenceLine y={50} stroke={colors.warn} strokeDasharray="4 4" />
-                      <ReferenceLine y={80} stroke={colors.hi} strokeDasharray="4 4" />
-                      <Line type="monotone" dataKey="prob" dot={false} stroke="#2563eb" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            )}
+						{!!series.length && (
+							<Card title={`Serie de riesgo - ${city}`} accent="cyan">
+								<div className="chart-wrap">
+									<ResponsiveContainer width="100%" height={380}>
+										<AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 34 }}>
+											<defs>
+												<linearGradient id="cyanGrad" x1="0" y1="0" x2="0" y2="1">
+													<stop offset="5%" stopColor="#22d3ee" stopOpacity={0.22} />
+													<stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+												</linearGradient>
+											</defs>
+											<CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+											<XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} angle={-35} textAnchor="end" dy={8} />
+											<YAxis domain={[0, 100]} tick={{ fill: "#71717a", fontSize: 10 }} tickFormatter={(v) => `${v}%`} width={42} />
+											<Tooltip content={<ChartTooltip />} />
+											<ReferenceLine y={20} stroke="#4ade80" strokeDasharray="4 4" strokeOpacity={0.45} />
+											<ReferenceLine y={50} stroke="#fbbf24" strokeDasharray="4 4" strokeOpacity={0.45} />
+											<ReferenceLine y={80} stroke="#ef4444" strokeDasharray="4 4" strokeOpacity={0.45} />
+											<Area type="monotone" dataKey="prob" stroke="#22d3ee" strokeWidth={2} dot={false} fill="url(#cyanGrad)" />
+										</AreaChart>
+									</ResponsiveContainer>
+								</div>
+							</Card>
+						)}
+					</div>
+				)}
+			</main>
 
-            {loading && Loader}
-          </>
-        )}
+			<footer className="app-footer">(c) {new Date().getFullYear()} Forest Fire Risk - Tunja</footer>
 
-        {/* Footer */}
-        <div style={{ textAlign: "center", color: "#e2e8f0", marginTop: 18, fontSize: 12 }}>
-          © {new Date().getFullYear()} Forest Fire Risk · Tunja — Proyecto académico
-        </div>
-
-        {/* Toast */}
-        {!!toast && (
-          <div
-            role="status"
-            style={{
-              position: "fixed",
-              right: 20,
-              bottom: 20,
-              background: colors.surface,
-              border: `1px solid ${colors.outline}`,
-              padding: "12px 14px",
-              borderRadius: 14,
-              boxShadow: "0 12px 40px rgba(2,6,23,.2)",
-              fontWeight: 700,
-            }}
-          >
-            {toast}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+			{!!toast && <div role="status" className="toast toast--ok">{toast}</div>}
+			{!!error && (
+				<div role="alert" className="toast toast--err">
+					<span>{error}</span>
+					<button className="toast-close" onClick={() => setError("")}>x</button>
+				</div>
+			)}
+		</div>
+	);
 }
