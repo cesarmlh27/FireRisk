@@ -62,7 +62,7 @@ ForestFire-app/
 
 ---
 
-## Instalación y puesta en marcha
+## Instalación
 
 ### 1 — Clonar el repositorio
 
@@ -159,7 +159,7 @@ App disponible en: [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## Endpoints principales
+## Endpoints
 
 | Método | Ruta | Descripción |
 |---|---|---|
@@ -210,7 +210,7 @@ Respuesta:
 
 ---
 
-## Seguridad implementada
+## Seguridad 
 
 - API key de admin comparada con `hmac.compare_digest` (resistente a timing attacks)
 - Hash SHA-256 almacenado en BD, nunca la key en texto plano
