@@ -234,6 +234,30 @@ Respuesta:
 
 ---
 
+## Reconocimientos y Propiedad Intelectual
+
+Este proyecto se encuentra registrado ante la Direccion Nacional de Derecho de Autor (Colombia).
+
+- Tipo de registro: Software
+- Numero de registro: 13-106-264
+- Titular(es): Cesar Miguel Lopez Hernandez - Cesar Andres Saenz Cuervo
+
+Adicionalmente, el proyecto obtuvo el reconocimiento a **Mejor Proyecto** en la Semana Cientifica de La fundacion universitaria Juan de Castellanos (2025-II).
+
+### Evidencias
+
+**Certificado de Derecho de Autor**
+
+![Certificado Derecho de Autor](./image/Certificado%20de%20registro.pdf)
+
+**Reconocimiento Mejor Poster — Semana Cientifica**
+
+![Reconocimiento Mejor Poster](./image/certificado_primer_puesto.png)
+
+> Nota: El contenido de este repositorio se comparte con fines academicos y de demostracion tecnica. Para usos distintos al academico, se requiere autorizacion del titular y cumplimiento de la licencia aplicable.
+
+---
+
 ## Licencia
 
 Proyecto de grado (académico) — uso educativo.
