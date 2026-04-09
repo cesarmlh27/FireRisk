@@ -1,6 +1,6 @@
-# 🔥 FireRisk — Forest Fire Risk Prediction
+#  FireRisk — Forest Fire Risk Prediction
 
-Sistema de predicción de riesgo de incendio forestal para **Tunja, Colombia**, basado en datos climáticos históricos de NASA POWER y un modelo de Random Forest calibrado.
+Sistema de predicción de riesgo de incendio forestal , basado en datos climáticos históricos de NASA POWER y un modelo de Random Forest calibrado.
 
 ---
 
@@ -220,6 +220,20 @@ Respuesta:
 
 ---
 
+## Imágenes del proyecto
+
+> Reemplaza las rutas por las rutas reales que prefieras dentro del repositorio.
+
+![FireRisk 1](./image/firerisk1.png)
+
+![FireRisk 2](./image/firerisk2.png)
+
+![FireRisk 3](./image/firerisk3.png)
+
+![FireRisk 4](./image/firerisk4.png)
+
+---
+
 ## Licencia
 
-Proyecto académico — uso educativo.
+Proyecto de grado (académico) — uso educativo.
